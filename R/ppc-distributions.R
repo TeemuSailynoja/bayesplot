@@ -622,21 +622,22 @@ ppc_pit_ecdf <- function(y,
     interpolate_adj = interpolate_adj
   )
   lims <- ecdf_intervals(gamma = gamma, N = N, K = K)
-  ggplot() +
+  ggplot(data.frame(
+    x = rep(1:K, 3) / K,
+    y = c(
+      ecdf(pit)(1:K / K) - (plot_diff == TRUE) * 1:K / K,
+      lims$upper[-1] / N - (plot_diff == TRUE) * 1:K / K,
+      lims$lower[-1] / N - (plot_diff == TRUE) * 1:K / K
+      ),
+    line_type = rep(c("pit_ecdf", "upper_bound", "lower_bound"), each = K)
+      )) +
     aes(
-      x = 1:K / K,
-      y = ecdf(pit)(seq(0, 1, length.out = K)) - (plot_diff == TRUE) * 1:K / K,
-      color = "y"
+      x = x,
+      y = y,
+      color = if (line_type == "pit_ecdf") "y" else "yrep",
+      group = line_type
     ) +
-    geom_step(show.legend = FALSE) +
-    geom_step(aes(
-      y = lims$upper[-1] / N - (plot_diff == TRUE) * 1:K / K,
-      color = "yrep"
-    ), show.legend = FALSE) +
-    geom_step(aes(
-      y = lims$lower[-1] / N - (plot_diff == TRUE) * 1:K / K,
-      color = "yrep"
-    ), show.legend = FALSE) +
+    geom_step(show_legend = FALSE) +
     yaxis_title(FALSE) +
     xaxis_title(FALSE) +
     yaxis_ticks(FALSE) +
@@ -689,38 +690,34 @@ ppc_pit_ecdf_grouped <-
     data <- data.frame(pit = pit, group = group) %>%
       group_by(group) %>%
       dplyr::group_map(~ data.frame(
-        ecdf_value = ecdf(.x$pit)(seq(0, 1, length.out = min(nrow(.x), K))),
-        group = .y[1],
-        lims_upper = ecdf_intervals(
+        y = c(
+          ecdf(.x$pit)(seq(0, 1, length.out = min(nrow(.x), K))),
+          ecdf_intervals(
           gamma = gammas[[unlist(.y[1])]],
           N = nrow(.x),
           K = min(nrow(.x), K)
         )$upper[-1] / nrow(.x),
-        lims_lower = ecdf_intervals(
+        ecdf_intervals(
           gamma = gammas[[unlist(.y[1])]],
           N = nrow(.x),
           K = min(nrow(.x), K)
-        )$lower[-1] / nrow(.x),
-        x = seq(0, 1, length.out = min(nrow(.x), K))
+        )$lower[-1] / nrow(.x)
+        ),
+        group = rep(.y[1], 3),
+        x = rep(seq(0, 1, length.out = min(nrow(.x), K)), 3),
+        line_type = rep(c("pit_ecdf", "upper_limit", "lower_limit"),
+                        each = min(nrow(.x), K))
       )) %>%
       dplyr::bind_rows()
 
     ggplot(data) +
       aes(
-        x = .data$x,
-        y = .data$ecdf_value - (plot_diff == TRUE) * .data$x,
-        group = .data$group,
-        color = "y"
+        x = x,
+        y = y - (plot_diff == TRUE) * x,
+        group = line_type,
+        color = if (line_type == "pit_ecdf") "y" else "yrep"
       ) +
       geom_step(show.legend = FALSE) +
-      geom_step(aes(
-        y = .data$lims_upper - (plot_diff == TRUE) * .data$x,
-        color = "yrep"
-      ), show.legend = FALSE) +
-      geom_step(aes(
-        y = .data$lims_lower - (plot_diff == TRUE) * .data$x,
-        color = "yrep"
-      ), show.legend = FALSE) +
       xaxis_title(FALSE) +
       yaxis_title(FALSE) +
       yaxis_ticks(FALSE) +
